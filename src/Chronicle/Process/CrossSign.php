@@ -188,10 +188,22 @@ class CrossSign
         if (!isset($message['currhash'], $message['summaryhash'])) {
             return false;
         }
+
+        $path = __DIR__ . '/../../../local/lock-' . $this->id . '.lock';
+        $fh = fopen($path, 'w+');
+        if (!flock($fh, LOCK_EX | LOCK_NB)) {
+            fclose($fh);
+            return false;
+        }
+
         $response = $this->sapient->decodeSignedJsonResponse(
             $this->sendToPeer($message),
             $this->publicKey
         );
+
+        fclose($fh);
+        unlink($path);
+
         return $this->updateLastRun($db, $response, $message);
     }
 
