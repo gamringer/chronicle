@@ -18,6 +18,8 @@ $settings = [
 
     'paginate-export' => null,
 
+    'crossSignLockDir' => CHRONICLE_APP_ROOT . '/local',
+
     // Renderer settings
     'renderer' => [
         'template_path' => CHRONICLE_APP_ROOT . '/templates/',

@@ -54,6 +54,12 @@ class CrossSign
     /** @var string */
     protected $url;
 
+    /** @var resource */
+    protected $lockHandle
+
+    /** @var string */
+    protected $lockPath
+
     /**
      * CrossSign constructor.
      *
@@ -189,10 +195,7 @@ class CrossSign
             return false;
         }
 
-        $path = __DIR__ . '/../../../local/lock-' . $this->id . '.lock';
-        $fh = fopen($path, 'w+');
-        if (!flock($fh, LOCK_EX | LOCK_NB)) {
-            fclose($fh);
+        if (!$this->acquireLock()) {
             return false;
         }
 
@@ -201,8 +204,7 @@ class CrossSign
             $this->publicKey
         );
 
-        fclose($fh);
-        unlink($path);
+        $this->releaseLock();
 
         return $this->updateLastRun($db, $response, $message);
     }
@@ -280,5 +282,36 @@ class CrossSign
             ]
         );
         return $db->commit();
+    }
+    
+    /**
+     * Acquires a lock to prevent 2 cross-signing operation from happening
+     * concurrently.
+     *
+     * @return bool
+     */
+    protected function acquireLock(): bool
+    {
+        $settings = Chronicle::getSettings();
+        $this->lockPath = $settings['crossSignLockDir'] . '/lock-' . $this->id . '.lock';
+        $this->lockHandle = fopen($path, 'w+');
+        if (!flock($this->lockHandle, LOCK_EX | LOCK_NB)) {
+            fclose($this->lockHandle);
+            return false;
+        }
+
+        return true;
+    }
+
+    
+    /**
+     * Releases a cross-signing lock.
+     */
+    protected function releaseLock(): void
+    {
+        fclose($this->lockHandle);
+        unlink($this->lockPath);
+        unset($this->lockHandle)
+        unset($this->lockPath)
     }
 }
